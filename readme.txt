@@ -10,7 +10,7 @@ You can change the type of track it generates by changing 'trackType' in the con
 
 If you want to generate multiple tracks at once, set 'overwriteTracks' to 'False' then run the program multiple times.
 Occasionally the generated tracks will cross over themselves (or otherwise be invalid), if this happens just generate a new one.
-NB the correct savePath will change every major BeamNG update, and that backslashes (\) aren't allowed in the config file; use forward slashes (/) instead.
+NB backslashes (\) aren't allowed in the config file; use forward slashes (/) instead.
 The tracks are designed to be played on Small Grid Map rather than the default Glow City.
 If you're struggling with anything message me and I'll almost certainly be able to help.
 

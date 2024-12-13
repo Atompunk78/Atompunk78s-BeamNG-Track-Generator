@@ -1,6 +1,6 @@
 #Atompunk78's BeamNG Track Generator
 #Licenced under the CC BY-NC-SA 4.0 (see licence.txt for more info)
-version = "1.9"
+version = "1.10"
 
 from random import randint, choice
 import json
@@ -81,6 +81,8 @@ fileEnd = """
 currentFileString = ""
 currentHeight = 0
 currentLength = 0
+currentPosition = [0, 0, 0]
+currentHeading = 0 #degrees
 
 try:
     with open("config.json", "r") as file:
@@ -133,9 +135,111 @@ fileName = parameters["savePath"] + "/" + parameters["trackName"]
 fileStart = fileStart.replace("?1", parameters["centreMeshType"]).replace("?2", parameters["leftMeshType"]).replace("?3", parameters["rightMeshType"]).replace("?4", str(parameters["trackWidth"])).replace("?5", "v"+version)
 fileEnd = fileEnd.replace("?1", parameters["centreMeshType"]).replace("?2", parameters["leftMeshType"]).replace("?3", parameters["rightMeshType"]).replace("?4", str(parameters["startHeight"]))
 
+positions = [(0, 0, parameters["startHeight"])]
+print()
+
+def segments_intersect(p1, p2, p3, p4): #this function is primarily written by ChatGPT; comments have been removed, for documentation check under the fridge
+    x1, y1 = p1[0], p1[1]
+    x2, y2 = p2[0], p2[1]
+    x3, y3 = p3[0], p3[1]
+    x4, y4 = p4[0], p4[1]
+
+    def orientation(ax, ay, bx, by, cx, cy):
+        val = (by - ay) * (cx - bx) - (bx - ax) * (cy - by)
+        if val > 0:
+            return 1
+        elif val < 0:
+            return 2
+        return 0
+
+    def on_segment(ax, ay, bx, by, cx, cy):
+        return min(ax,bx) <= cx <= max(ax,bx) and min(ay,by) <= cy <= max(ay,by)
+    
+    o1 = orientation(x1, y1, x2, y2, x3, y3)
+    o2 = orientation(x1, y1, x2, y2, x4, y4)
+    o3 = orientation(x3, y3, x4, y4, x1, y1)
+    o4 = orientation(x3, y3, x4, y4, x2, y2)
+
+    if o1 != o2 and o3 != o4:
+        return True
+    if o1 == 0 and on_segment(x1, y1, x2, y2, x3, y3):
+        return True
+    if o2 == 0 and on_segment(x1, y1, x2, y2, x4, y4):
+        return True
+    if o3 == 0 and on_segment(x3, y3, x4, y4, x1, y1):
+        return True
+    if o4 == 0 and on_segment(x3, y3, x4, y4, x2, y2):
+        return True
+    return False
+
+def check_overlaps():
+    for i in range(len(positions)-1):
+        for j in range(i+3, len(positions)-1):
+            p1 = positions[i]
+            p2 = positions[i+1]
+            p3 = positions[j]
+            p4 = positions[j+1]
+
+            if segments_intersect(p1, p2, p3, p4):
+                z_avg_seg1 = (p1[2] + p2[2]) / 2.0
+                z_avg_seg2 = (p3[2] + p4[2]) / 2.0
+                if abs(z_avg_seg1 - z_avg_seg2) < 12:
+                    return False
+    return True
+
+def UpdatePositions(height, length, radius=None, direction=None): #also primarily ChatGPT; o1 is so powerful
+    global positions, currentHeading
+    x_start, y_start, _ = positions[-1]
+
+    if radius is None:
+        # Straight segment subdivision
+        step = 1.0
+        steps = int(math.ceil(length / step))
+        for s in range(1, steps+1):
+            dist = s * step
+            if dist > length:
+                dist = length
+            nx = x_start + dist * math.sin(math.radians(currentHeading))
+            ny = y_start + dist * math.cos(math.radians(currentHeading))
+            nz = height
+            positions.append((nx, ny, nz))
+    else:
+        # Curved segment subdivision
+        angle_delta = -length * direction
+        increment = 5.0 if abs(angle_delta) >= 5 else angle_delta
+        scaled_radius = radius * 4
+        center_angle = currentHeading - 90 * direction
+        cx = x_start + scaled_radius * math.sin(math.radians(center_angle))
+        cy = y_start + scaled_radius * math.cos(math.radians(center_angle))
+        dx = x_start - cx
+        dy = y_start - cy
+        theta_start = math.degrees(math.atan2(dx, dy))
+
+        total_steps = int(abs(angle_delta) / increment)
+        sign = 1 if angle_delta > 0 else -1
+
+        current_angle = theta_start
+        for s in range(1, total_steps+1):
+            a = current_angle + increment * sign
+            # check if we overshoot the final angle
+            final_angle = theta_start + angle_delta
+            if sign > 0 and a > final_angle:
+                a = final_angle
+            elif sign < 0 and a < final_angle:
+                a = final_angle
+            nx = cx + scaled_radius * math.sin(math.radians(a))
+            ny = cy + scaled_radius * math.cos(math.radians(a))
+            nz = height
+            positions.append((nx, ny, nz))
+            current_angle = a
+
+        currentHeading = (currentHeading + angle_delta) % 360
+
+
 def addPiece():
     global currentHeight
     global currentLength
+    global positions
     randomNumber = choice(parameters["tileTypeDist"])
 
     if randomNumber == 1: #short straight
@@ -156,6 +260,7 @@ def addPiece():
           "value": {currentHeight}
         ]""")
         currentLength += length * 4
+        UpdatePositions(currentHeight, length)
         
     elif randomNumber == 2: #long straight
         length = randint(parameters["longStraightLengthMin"], parameters["longStraightLengthMax"])
@@ -175,6 +280,7 @@ def addPiece():
           "value": {currentHeight}
         ]""")
         currentLength += length * 4
+        UpdatePositions(currentHeight, length)
         
     elif randomNumber == 3: #short turn
         direction = choice([-1,1])
@@ -197,7 +303,8 @@ def addPiece():
           "interpolation": "smoothSlope",
           "value": {currentHeight}
         ]""")
-        currentLength += round(2 * math.pi * radius * (length / 360), 1)
+        currentLength += round(2 * math.pi * (radius * 4) * (length / 360), 1)
+        UpdatePositions(currentHeight, length, radius, direction)
         
     elif randomNumber == 4: #long turn
         direction = choice([-1,1])
@@ -222,23 +329,38 @@ def addPiece():
           "interpolation": "smoothSlope",
           "value": {currentHeight}
         ]""")
-        currentLength += round(2 * math.pi * radius * (length / 360), 1)
+        currentLength += round(2 * math.pi * (radius * 4) * (length / 360), 1)
+        UpdatePositions(currentHeight, length, radius, direction)
 
     return newPiece.replace("[","{").replace("]","}").replace("?","")
 
+
 acceptableTrack = False
+count = 0
 while not acceptableTrack: #makes sure track doesn't go below 0 height
     acceptableTrack = True
+    currentFileString = ""
+    currentHeight = 0
+    currentLength = 0
+    positions = [(0, 0, parameters["startHeight"])]
+    currentHeading = 0
+
     while currentLength < parameters["totalLength"]:
       if acceptableTrack:
           if parameters["startHeight"] + currentHeight > 0:
               currentFileString += addPiece()
           else:
               acceptableTrack = False
+
+    if parameters["checkForOverlap"]:
+        acceptableTrack = check_overlaps()
+
     if not acceptableTrack and parameters["showDebugMessages"]:
-      currentFileString = ""
-      currentHeight = 0
-      print("\nTrack layout invalid, regenerating track...",end="")
+      print("Track layout invalid, regenerating track...")
+    count += 1
+    if count > 25:
+        print("\nMaximum retries reached, exiting program. If this keeps happening, lower the maximum length or disable checkForOverlap.\n")
+        sys.exit(1)
 
 currentFileString = fileStart + currentFileString + fileEnd
 
@@ -269,4 +391,4 @@ else:
 with open(saveName, "w") as file:
     file.write(currentFileString)
 
-print(f"\nTrack successfully generated and saved to {saveName}\n")
+print(f"Track successfully generated and saved to {saveName}\n")
