@@ -4,6 +4,7 @@
     "trackType": "normal",
     "overwriteTracks": true,
     "showDebugMessages": false,
+    "checkForOverlap": true,
     "totalLength": 2000,
     "startHeight": 100
 }
