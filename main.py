@@ -193,7 +193,7 @@ def UpdatePositions(height, length, radius=None, direction=None): #also primaril
 
     if radius is None:
         # Straight segment subdivision
-        step = 1.0
+        step = 4
         steps = int(math.ceil(length / step))
         for s in range(1, steps+1):
             dist = s * step
@@ -206,7 +206,7 @@ def UpdatePositions(height, length, radius=None, direction=None): #also primaril
     else:
         # Curved segment subdivision
         angle_delta = -length * direction
-        increment = 5.0 if abs(angle_delta) >= 5 else angle_delta
+        increment = 10 if abs(angle_delta) >= 5 else angle_delta
         scaled_radius = radius * 4
         center_angle = currentHeading - 90 * direction
         cx = x_start + scaled_radius * math.sin(math.radians(center_angle))
@@ -234,6 +234,7 @@ def UpdatePositions(height, length, radius=None, direction=None): #also primaril
             current_angle = a
 
         currentHeading = (currentHeading + angle_delta) % 360
+        #print("UpdatePositions called with length:", length, "radius:", radius, "direction:", direction)
 
 
 def addPiece():
@@ -303,7 +304,7 @@ def addPiece():
           "interpolation": "smoothSlope",
           "value": {currentHeight}
         ]""")
-        currentLength += round(2 * math.pi * (radius * 4) * (length / 360), 1)
+        currentLength += 2 * math.pi * (radius * 4) * (length / 360)
         UpdatePositions(currentHeight, length, radius, direction)
         
     elif randomNumber == 4: #long turn
@@ -329,21 +330,23 @@ def addPiece():
           "interpolation": "smoothSlope",
           "value": {currentHeight}
         ]""")
-        currentLength += round(2 * math.pi * (radius * 4) * (length / 360), 1)
+        currentLength += 2 * math.pi * (radius * 4) * (length / 360)
         UpdatePositions(currentHeight, length, radius, direction)
 
     return newPiece.replace("[","{").replace("]","}").replace("?","")
 
 
+from time import sleep
 acceptableTrack = False
 count = 0
-while not acceptableTrack: #makes sure track doesn't go below 0 height
+while not acceptableTrack: #makes sure track doesn't go below 0 height or, if enabled, overlap itself
     acceptableTrack = True
     currentFileString = ""
     currentHeight = 0
     currentLength = 0
     positions = [(0, 0, parameters["startHeight"])]
     currentHeading = 0
+    stuckNumber = 0
 
     while currentLength < parameters["totalLength"]:
       if acceptableTrack:
@@ -351,8 +354,9 @@ while not acceptableTrack: #makes sure track doesn't go below 0 height
               currentFileString += addPiece()
           else:
               acceptableTrack = False
+              currentLength = parameters["totalLength"]
 
-    if parameters["checkForOverlap"]:
+    if acceptableTrack and parameters["checkForOverlap"]:
         acceptableTrack = check_overlaps()
 
     if not acceptableTrack and parameters["showDebugMessages"]:

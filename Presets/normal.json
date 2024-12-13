@@ -27,7 +27,7 @@
     "longTurnLengthMin2": 5,
     "longTurnLengthMax2": 60,
     "longTurnRadiusMin1": 3,
-    "longTurnRadiusMax1": 32,
+    "longTurnRadiusMax1": 16,
     "longTurnRadiusMin2": 3,
     "longTurnRadiusMax2": 32,
     "longTurnHeightDist": [-8, -5, -3, -1, 0, 1, 3, 5, 8],
