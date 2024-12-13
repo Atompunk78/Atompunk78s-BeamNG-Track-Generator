@@ -1,6 +1,6 @@
 #Atompunk78's BeamNG Track Generator
 #Licenced under the CC BY-NC-SA 4.0 (see licence.txt for more info)
-version = "1.10"
+version = "1.11"
 
 from random import randint, choice
 import json
