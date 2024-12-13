@@ -1,6 +1,6 @@
 #Atompunk78's BeamNG Track Generator
 #Licenced under the CC BY-NC-SA 4.0 (see licence.txt for more info)
-version = "1.11"
+version = "1.12"
 
 from random import randint, choice
 import json
@@ -79,9 +79,9 @@ fileEnd = """
 """ #the version just above represents the track editor version, not that of this program
 
 currentFileString = ""
-currentHeight = 0
+currentHeight = 0 #relative to starting height
 currentLength = 0
-currentPosition = [0, 0, 0]
+currentPosition = [0, 0, 0] #relative to track start
 currentHeading = 0 #degrees
 
 try:
@@ -335,8 +335,6 @@ def addPiece():
 
     return newPiece.replace("[","{").replace("]","}").replace("?","")
 
-
-from time import sleep
 acceptableTrack = False
 count = 0
 while not acceptableTrack: #makes sure track doesn't go below 0 height or, if enabled, overlap itself
