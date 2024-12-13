@@ -1,6 +1,12 @@
+"""
+This is an attempt at overlap detection. It's not working perfectly at the moment, but it's well over 50% accurate at least.
+I might come back to this, or it's equally possible I'll leave it here for someone else to have a shot at.
+The part that calculates and updates 'positions' is working flawlessly, it's just the detection that's the issue.
+"""
+
 #Atompunk78's BeamNG Track Generator
 #Licenced under the CC BY-NC-SA 4.0 (see licence.txt for more info)
-version = "1.9"
+version = "1.10e"
 
 from random import randint, choice
 import json
@@ -81,6 +87,8 @@ fileEnd = """
 currentFileString = ""
 currentHeight = 0
 currentLength = 0
+currentPosition = [0, 0, 0]
+currentHeading = 0 #degrees
 
 try:
     with open("config.json", "r") as file:
@@ -133,9 +141,38 @@ fileName = parameters["savePath"] + "/" + parameters["trackName"]
 fileStart = fileStart.replace("?1", parameters["centreMeshType"]).replace("?2", parameters["leftMeshType"]).replace("?3", parameters["rightMeshType"]).replace("?4", str(parameters["trackWidth"])).replace("?5", "v"+version)
 fileEnd = fileEnd.replace("?1", parameters["centreMeshType"]).replace("?2", parameters["leftMeshType"]).replace("?3", parameters["rightMeshType"]).replace("?4", str(parameters["startHeight"]))
 
+positions = [(0, 0, parameters["startHeight"])]
+
+def UpdatePositions(height, length, radius=None, direction=None): #this function is primarily written by ChatGPT; comments have been removed, for documentation check under the fridge
+    global positions, currentHeading
+    x, y, z = positions[-1]
+
+    if radius is None:
+        distance = length
+        x += distance * math.sin(math.radians(currentHeading))
+        y += distance * math.cos(math.radians(currentHeading))
+        z = height
+    else:
+        angle_delta = -length * direction
+        center_angle = currentHeading - 90 * direction
+        scaled_radius = radius * 4
+        center_x = x + scaled_radius * math.sin(math.radians(center_angle))
+        center_y = y + scaled_radius * math.cos(math.radians(center_angle))
+        dx = x - center_x
+        dy = y - center_y
+        theta_start = math.degrees(math.atan2(dx, dy))
+        theta_end = theta_start + angle_delta
+        x = center_x + scaled_radius * math.sin(math.radians(theta_end))
+        y = center_y + scaled_radius * math.cos(math.radians(theta_end))
+        z = height
+        currentHeading = (currentHeading + angle_delta) % 360
+
+    positions.append((x, y, z))
+
 def addPiece():
     global currentHeight
     global currentLength
+    global positions
     randomNumber = choice(parameters["tileTypeDist"])
 
     if randomNumber == 1: #short straight
@@ -156,6 +193,7 @@ def addPiece():
           "value": {currentHeight}
         ]""")
         currentLength += length * 4
+        UpdatePositions(currentHeight, length)
         
     elif randomNumber == 2: #long straight
         length = randint(parameters["longStraightLengthMin"], parameters["longStraightLengthMax"])
@@ -175,6 +213,7 @@ def addPiece():
           "value": {currentHeight}
         ]""")
         currentLength += length * 4
+        UpdatePositions(currentHeight, length)
         
     elif randomNumber == 3: #short turn
         direction = choice([-1,1])
@@ -197,7 +236,8 @@ def addPiece():
           "interpolation": "smoothSlope",
           "value": {currentHeight}
         ]""")
-        currentLength += round(2 * math.pi * radius * (length / 360), 1)
+        currentLength += round(2 * math.pi * (radius * 4) * (length / 360), 1)
+        UpdatePositions(currentHeight, length, radius, direction)
         
     elif randomNumber == 4: #long turn
         direction = choice([-1,1])
@@ -222,23 +262,55 @@ def addPiece():
           "interpolation": "smoothSlope",
           "value": {currentHeight}
         ]""")
-        currentLength += round(2 * math.pi * radius * (length / 360), 1)
+        currentLength += round(2 * math.pi * (radius * 4) * (length / 360), 1)
+        UpdatePositions(currentHeight, length, radius, direction)
 
     return newPiece.replace("[","{").replace("]","}").replace("?","")
 
 acceptableTrack = False
+count = 0
 while not acceptableTrack: #makes sure track doesn't go below 0 height
     acceptableTrack = True
+    currentFileString = ""
+    currentHeight = 0
+    currentLength = 0
+    positions = [(0, 0, parameters["startHeight"])]
+
     while currentLength < parameters["totalLength"]:
       if acceptableTrack:
           if parameters["startHeight"] + currentHeight > 0:
               currentFileString += addPiece()
           else:
               acceptableTrack = False
+              
+    for i in range(len(positions)):
+        if not acceptableTrack:
+            break
+        for j in range(i+3, len(positions)):
+            x1, y1, z1 = positions[i]
+            x2, y2, z2 = positions[j]
+            
+            dx = x1 - x2
+            dy = y1 - y2
+            dz = z1 - z2
+            
+            horizontal_dist = math.sqrt(dx*dx + dy*dy)
+            
+            if horizontal_dist < 5 and abs(dz) < 12:
+                acceptableTrack = False
+                print(i,j)
+                count += 1
+                if count > 100:
+                    print("BAD")
+                    sys.exit(1)
+                break
+
     if not acceptableTrack and parameters["showDebugMessages"]:
-      currentFileString = ""
-      currentHeight = 0
       print("\nTrack layout invalid, regenerating track...",end="")
+      with open(fileName.replace(".json","_failed.json"), "w") as file:
+          file.write(fileStart + currentFileString + fileEnd)
+          print(fileName.replace(".json","_failed.json"))
+
 
 currentFileString = fileStart + currentFileString + fileEnd
 
@@ -270,3 +342,5 @@ with open(saveName, "w") as file:
     file.write(currentFileString)
 
 print(f"\nTrack successfully generated and saved to {saveName}\n")
+
+print(positions)

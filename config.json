@@ -1,9 +1,9 @@
 {
     "savePath": "AUTODETECT",
     "trackName": "Atompunk78's_autogen_track.json",
-    "trackType": "normal",
+    "trackType": "drift",
     "overwriteTracks": true,
-    "showDebugMessages": false,
+    "showDebugMessages": true,
     "totalLength": 2000,
     "startHeight": 100
 }
