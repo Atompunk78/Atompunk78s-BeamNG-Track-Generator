@@ -1,6 +1,6 @@
 #Atompunk78's BeamNG Track Generator
 #Licenced under the CC BY-NC-SA 4.0 (see licence.txt for more info)
-version = "1.14"
+version = "1.15"
 
 import os
 import sys
@@ -149,7 +149,7 @@ fileEnd = fileEnd.replace("?1", parameters["centreMeshType"]).replace("?2", para
 positions = [(0, 0, parameters["startHeight"])]
 print()
 
-def segments_intersect(p1, p2, p3, p4): #this function is primarily written by ChatGPT; comments have been removed, for documentation check under the fridge
+def SegmentsIntersect(p1, p2, p3, p4): #this function is primarily written by ChatGPT; comments have been removed, for documentation check under the fridge
     x1, y1 = p1[0], p1[1]
     x2, y2 = p2[0], p2[1]
     x3, y3 = p3[0], p3[1]
@@ -183,7 +183,7 @@ def segments_intersect(p1, p2, p3, p4): #this function is primarily written by C
         return True
     return False
 
-def check_overlaps():
+def CheckForOverlap():
     for i in range(len(positions)-1):
         for j in range(i+3, len(positions)-1):
             p1 = positions[i]
@@ -191,7 +191,7 @@ def check_overlaps():
             p3 = positions[j]
             p4 = positions[j+1]
 
-            if segments_intersect(p1, p2, p3, p4):
+            if SegmentsIntersect(p1, p2, p3, p4):
                 z_avg_seg1 = (p1[2] + p2[2]) / 2.0
                 z_avg_seg2 = (p3[2] + p4[2]) / 2.0
                 if abs(z_avg_seg1 - z_avg_seg2) < 12:
@@ -245,8 +245,6 @@ def UpdatePositions(height, length, radius=None, direction=None): #also primaril
             current_angle = a
 
         currentHeading = (currentHeading + angle_delta) % 360
-        #print("UpdatePositions called with length:", length, "radius:", radius, "direction:", direction)
-
 
 def addPiece():
     global currentHeight
@@ -346,13 +344,13 @@ def addPiece():
 
     return newPiece.replace("[","{").replace("]","}").replace("?","")
 
-acceptableTrack = False
+faliureReason = "No track"
 count = 0
 genTime = 0
 overlapTime = 0
 
-while not acceptableTrack: #makes sure track doesn't go below 0 height or, if enabled, overlap itself
-    acceptableTrack = True
+while faliureReason != "": #makes sure track doesn't go below 0 height or, if enabled, overlap itself
+    faliureReason = ""
     currentFileString = ""
     currentHeight = 0
     currentLength = 0
@@ -360,21 +358,23 @@ while not acceptableTrack: #makes sure track doesn't go below 0 height or, if en
     startTime = time()
 
     while currentLength < parameters["trackLength"]:
-      if acceptableTrack:
+      if faliureReason == "":
           if parameters["startHeight"] + currentHeight > 0:
               currentFileString += addPiece()
           else:
-              acceptableTrack = False
+              faliureReason = "clips through floor"
               currentLength = parameters["trackLength"]
     genTime += time() - startTime
     startTime = time()
 
-    if acceptableTrack and parameters["checkForOverlap"]:
-        acceptableTrack = check_overlaps()
+    if faliureReason == "" and parameters["checkForOverlap"]:
+        if not CheckForOverlap():
+            faliureReason = "overlap detected"
+            
     overlapTime += time() - startTime
 
-    if not acceptableTrack and parameters["showDebugMessages"]:
-      print("Track layout invalid, regenerating track...")
+    if faliureReason != "" and parameters["showDebugMessages"]:
+      print(f"Invalid track ({faliureReason}), regenerating...")
     count += 1
     if count > parameters["maxGenRetries"]:
         print("\nMaximum retries reached, exiting program. If this keeps happening: increase maxGenRetries (lengthens max generation time), lower trackLength, or disable checkForOverlap.\n")
