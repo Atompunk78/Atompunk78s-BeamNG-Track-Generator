@@ -6,5 +6,6 @@
     "checkForOverlap": true,
     "showDebugMessages": false,
     "totalLength": 2000,
-    "startHeight": 100
+    "startHeight": 100,
+    "maxGenRetries": 25
 }

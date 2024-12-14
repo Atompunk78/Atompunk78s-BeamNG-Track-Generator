@@ -1,6 +1,6 @@
 #Atompunk78's BeamNG Track Generator
 #Licenced under the CC BY-NC-SA 4.0 (see licence.txt for more info)
-version = "1.12"
+version = "1.13"
 
 from random import randint, choice
 import json
@@ -360,8 +360,8 @@ while not acceptableTrack: #makes sure track doesn't go below 0 height or, if en
     if not acceptableTrack and parameters["showDebugMessages"]:
       print("Track layout invalid, regenerating track...")
     count += 1
-    if count > 25:
-        print("\nMaximum retries reached, exiting program. If this keeps happening, lower the maximum length or disable checkForOverlap.\n")
+    if count > parameters["maxGenRetries"]:
+        print("\nMaximum retries reached, exiting program. If this keeps happening: increase maxGenRetries (lengthens max generation time), lower totalLength, or disable checkForOverlap.\n")
         sys.exit(1)
 
 currentFileString = fileStart + currentFileString + fileEnd
