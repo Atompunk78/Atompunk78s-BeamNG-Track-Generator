@@ -1,12 +1,13 @@
 #Atompunk78's BeamNG Track Generator
 #Licenced under the CC BY-NC-SA 4.0 (see licence.txt for more info)
-version = "1.13"
+version = "1.14"
 
-from random import randint, choice
-import json
-import sys
 import os
+import sys
+from time import time
 import math
+import json
+from random import randint, choice
 
 fileStart = """
 {
@@ -79,8 +80,8 @@ fileEnd = """
 """ #the version just above represents the track editor version, not that of this program
 
 currentFileString = ""
-currentHeight = 0 #relative to starting height
-currentLength = 0
+currentHeight = 0 #relative to starting height; all units are metres
+currentLength = 0 #beamng always scales lengths by 4 for some reason
 currentPosition = [0, 0, 0] #relative to track start
 currentHeading = 0 #degrees
 
@@ -121,6 +122,13 @@ if parameters["savePath"] == "AUTODETECT":
         print("Path found and updated")
 
 try:
+    with open("Other/advanced_config.json", "r") as file: #putting this any earlier will overwrite the config file
+        parameters |= json.load(file)
+except:
+    print("\nThe advanced config file cannot be read. If this issue persists, redownload the file.\n")
+    sys.exit(1)
+
+try:
     with open(f"Presets/{parameters['trackType']}.json", "r") as file:
         parameters |= json.load(file)
 except FileNotFoundError:
@@ -129,6 +137,9 @@ except FileNotFoundError:
 except:
     print(f"\nThe preset cannot be read. Fix any syntax errors, and if this issue persists, redownload the file.\n")
     sys.exit(1)
+
+if parameters["checkForOverlap"] and parameters["trackLength"] > 10000:
+    print("For better performance, overlap detection is not recommended for track lengths over 10,000m")
 
 fileName = parameters["savePath"] + "/" + parameters["trackName"]
 
@@ -193,7 +204,7 @@ def UpdatePositions(height, length, radius=None, direction=None): #also primaril
 
     if radius is None:
         # Straight segment subdivision
-        step = 4
+        step = parameters["straightsStep"] #increase step for better overlap detection but drastically worse performance
         steps = int(math.ceil(length / step))
         for s in range(1, steps+1):
             dist = s * step
@@ -206,7 +217,7 @@ def UpdatePositions(height, length, radius=None, direction=None): #also primaril
     else:
         # Curved segment subdivision
         angle_delta = -length * direction
-        increment = 10 if abs(angle_delta) >= 5 else angle_delta
+        increment = parameters["curvesStep"] if abs(angle_delta) >= 5 else angle_delta  #increase increment for better overlap detection but drastically worse performance
         scaled_radius = radius * 4
         center_angle = currentHeading - 90 * direction
         cx = x_start + scaled_radius * math.sin(math.radians(center_angle))
@@ -221,7 +232,7 @@ def UpdatePositions(height, length, radius=None, direction=None): #also primaril
         current_angle = theta_start
         for s in range(1, total_steps+1):
             a = current_angle + increment * sign
-            # check if we overshoot the final angle
+            # Check if we overshoot the final angle
             final_angle = theta_start + angle_delta
             if sign > 0 and a > final_angle:
                 a = final_angle
@@ -337,37 +348,46 @@ def addPiece():
 
 acceptableTrack = False
 count = 0
+genTime = 0
+overlapTime = 0
+
 while not acceptableTrack: #makes sure track doesn't go below 0 height or, if enabled, overlap itself
     acceptableTrack = True
     currentFileString = ""
     currentHeight = 0
     currentLength = 0
     positions = [(0, 0, parameters["startHeight"])]
-    currentHeading = 0
-    stuckNumber = 0
+    startTime = time()
 
-    while currentLength < parameters["totalLength"]:
+    while currentLength < parameters["trackLength"]:
       if acceptableTrack:
           if parameters["startHeight"] + currentHeight > 0:
               currentFileString += addPiece()
           else:
               acceptableTrack = False
-              currentLength = parameters["totalLength"]
+              currentLength = parameters["trackLength"]
+    genTime += time() - startTime
+    startTime = time()
 
     if acceptableTrack and parameters["checkForOverlap"]:
         acceptableTrack = check_overlaps()
+    overlapTime += time() - startTime
 
     if not acceptableTrack and parameters["showDebugMessages"]:
       print("Track layout invalid, regenerating track...")
     count += 1
     if count > parameters["maxGenRetries"]:
-        print("\nMaximum retries reached, exiting program. If this keeps happening: increase maxGenRetries (lengthens max generation time), lower totalLength, or disable checkForOverlap.\n")
+        print("\nMaximum retries reached, exiting program. If this keeps happening: increase maxGenRetries (lengthens max generation time), lower trackLength, or disable checkForOverlap.\n")
         sys.exit(1)
+
+if parameters["showDebugMessages"]:
+    print(f"\nTotal track generation time: {round(genTime,2)}s")
+    print(f"Total overlap detection time: {round(overlapTime,2)}s\n")
 
 currentFileString = fileStart + currentFileString + fileEnd
 
 if not parameters["overwriteTracks"]:
-  with open("data.txt", "r+") as file:
+  with open("Other/data.txt", "r+") as file:
       try:
         data = eval(file.read())
       except:
@@ -385,7 +405,7 @@ if not parameters["overwriteTracks"]:
           saveName = fileName.replace(".json","") + "_1"
       saveName += ".json"
   
-  with open("data.txt", "w") as file:
+  with open("Other/data.txt", "w") as file:
       file.write(str(data))
 else:
     saveName = fileName

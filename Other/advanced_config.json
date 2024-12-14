@@ -1,0 +1,6 @@
+{
+    "showDebugMessages": false,
+    "maxGenRetries": 25,
+    "straightsStep": 2,
+    "curvesStep": 10
+}

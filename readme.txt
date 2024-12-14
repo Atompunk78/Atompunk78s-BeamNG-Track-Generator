@@ -9,9 +9,8 @@ This will generate one track with the default parameters. You don't need to rebo
 You can change the type of track it generates by changing 'trackType' in the config file to the name of any file in the 'Presets' folder, or make your own preset by creating one or editing the 'custom' preset.
 
 If you want to generate multiple tracks at once, set 'overwriteTracks' to 'False' then run the program multiple times.
-Occasionally the generated tracks will cross over themselves (or otherwise be invalid), if this happens just generate a new one.
 NB backslashes (\) aren't allowed in the config file; use forward slashes (/) instead.
-The tracks are designed to be played on Small Grid Map rather than the default Glow City.
+The tracks are designed to be played on Small Grid Map rather than the default Glow City. Increase startHeight to 800 for better Glow City compatibility.
 If you're struggling with anything message me and I'll almost certainly be able to help.
 
 Kindly note there's a licence attached to the program. It basically says:

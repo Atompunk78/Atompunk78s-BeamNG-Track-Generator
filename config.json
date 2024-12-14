@@ -4,8 +4,6 @@
     "trackType": "normal",
     "overwriteTracks": true,
     "checkForOverlap": true,
-    "showDebugMessages": false,
-    "totalLength": 2000,
-    "startHeight": 100,
-    "maxGenRetries": 25
+    "trackLength": 2500,
+    "startHeight": 100
 }
